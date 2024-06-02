@@ -7,7 +7,7 @@ export default function HomePage() {
       <Image
         width={512}
         height={512}
-        src="/logo.png"
+        src="/images/logo.png"
         alt="Platforms on Vercel"
         className="w-48"
       />

@@ -10,7 +10,7 @@ export const config = {
      * 3. /_static (inside /public)
      * 4. all root files inside /public (e.g. /favicon.ico)
      */
-    "/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
+    "/((?!api/|_next/|_static/|images/|_vercel|[\\w-]+\\.\\w+).*)",
   ],
 };
 
@@ -20,7 +20,7 @@ export default async function middleware(req: NextRequest) {
   // Get hostname of request (e.g. demo.vercel.pub, demo.localhost:3000)
   let hostname = req.headers
     .get("host")!
-    .replace(".localhost:3000", `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`);
+    .replace(".localhost:3001", `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`);
 
   // special case for Vercel preview deployment URLs
   if (
@@ -41,7 +41,6 @@ export default async function middleware(req: NextRequest) {
   // rewrites for app pages
   if (hostname == `app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`) {
     const session = await getToken({ req });
-    console.log("session !!!", session)
     // if (!session && path !== "/login") {
     //   return NextResponse.redirect(new URL("/login", req.url));
     // } else if (session && path == "/login") {
@@ -61,7 +60,7 @@ export default async function middleware(req: NextRequest) {
 
   // rewrite root application to `/home` folder
   if (
-    hostname === "localhost:3000" ||
+    hostname === "localhost:3001" ||
     hostname === process.env.NEXT_PUBLIC_ROOT_DOMAIN
   ) {
     return NextResponse.rewrite(
