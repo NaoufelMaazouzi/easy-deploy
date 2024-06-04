@@ -57,3 +57,17 @@ export const toDateString = (date: Date) => {
 export const random = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1) + min);
 };
+
+export const formatLocationAddress = (city: any) => {
+  let address = (city.properties.formatted || city.properties.name).replace(/, France/g, "")
+  const parts = address.split(" ");
+  let formattedAddress
+  if (parts.length > 1 && /^\d+$/.test(parts[0])) {
+      let postalCode: string = parts[0];
+      let cityName: string = parts.slice(1).join(" ");
+      formattedAddress = `${cityName} (${postalCode})`;
+  } else {
+      formattedAddress = address;
+  }
+  return formattedAddress
+}
