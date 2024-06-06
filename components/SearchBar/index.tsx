@@ -3,20 +3,25 @@ import axios from 'axios';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { Location } from '@/app/app/(dashboard)/createSite/page';
 import { toast } from 'sonner';
+import { autocompleteSearch } from '@/lib/actions';
+import { Input } from '../ui/input';
 
 interface SearchBarProps<T> {
   nameOfProperty: string;
+  placeHolder: string;
   setData: Dispatch<SetStateAction<T>>;
 }
 
 export default function SearchBar<T extends { [key: string]: any }>({
   nameOfProperty,
+  placeHolder,
   setData,
 }: SearchBarProps<T>) {
   const [query, setQuery] = useState<string>('');
   const [results, setResults] = useState<Location[]>([]);
   const [showResults, setShowResults] = useState<boolean>(false);
   const searchBarRef = useRef<HTMLDivElement>(null);
+  const [selectedResult, setSelectedResult] = useState<Location | null>(null);
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -26,10 +31,10 @@ export default function SearchBar<T extends { [key: string]: any }>({
       }
 
       try {
-        const response = await axios.post('/api/autocompleteSearch', {
-            query,
-        });
-        setResults(response.data)
+        if (!selectedResult) {
+          const response = await autocompleteSearch({ query });
+          setResults(response.data);
+        }
       } catch (error) {
         console.error('Erreur lors de la recherche des adresses :', error);
       }
@@ -38,7 +43,7 @@ export default function SearchBar<T extends { [key: string]: any }>({
     const timeoutId = setTimeout(fetchResults, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [query]);
+  }, [query, selectedResult]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
@@ -55,23 +60,21 @@ export default function SearchBar<T extends { [key: string]: any }>({
   }
 
   const handleResultClick = (result: Location) => {
+    setSelectedResult(result);
     setQuery(result.name);
     setResults([]);
     setShowResults(false);
 
     if (nameOfProperty === "secondaryActivityCities") {
-      setData((prevData) => {
-        const arrayUpdated = updateArray([...(prevData[nameOfProperty] || [])], result)
-        return ({
+      setData((prevData) => ({
         ...prevData,
-        [nameOfProperty]: arrayUpdated
-      })
-    });
+        [nameOfProperty]: updateArray([...(prevData[nameOfProperty] || [])], result),
+      }));
       setQuery('');
     } else {
       setData((prevData) => ({
         ...prevData,
-        [nameOfProperty]: result
+        [nameOfProperty]: result,
       }));
     }
   };
@@ -83,6 +86,7 @@ export default function SearchBar<T extends { [key: string]: any }>({
   };
 
   const clearSearch = () => {
+    setSelectedResult(null)
     setQuery('');
     setResults([]);
     setShowResults(false);
@@ -115,12 +119,11 @@ export default function SearchBar<T extends { [key: string]: any }>({
   return (
     <div ref={searchBarRef} className="relative w-full">
       <div className="relative w-full">
-        <input
+        <Input
           type="text"
           value={query}
           onChange={handleChange}
-          placeholder="Recherche d'adresse"
-          className="w-full rounded-md border border-stone-200 bg-stone-50 px-4 py-2 pr-10 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
+          placeholder={placeHolder}
         />
         {query && (
           <XMarkIcon

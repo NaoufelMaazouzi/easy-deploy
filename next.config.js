@@ -5,7 +5,7 @@ module.exports = {
   reactStrictMode: false,
   experimental: {
     serverActions: {
-      allowedOrigins: ["app.localhost:3001"],
+      allowedOrigins: ["app.localhost:3000"],
     },
   },
   images: {

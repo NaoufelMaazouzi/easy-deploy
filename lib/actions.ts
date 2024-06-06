@@ -14,7 +14,12 @@ import {
 } from "@/lib/domains";
 import { put } from "@vercel/blob";
 import { customAlphabet } from "nanoid";
-import { getBlurDataURL } from "@/lib/utils";
+import { formatLocationAddress, getBlurDataURL } from "@/lib/utils";
+import { authenticatedAction } from "./safe-actions";
+import { z } from "zod";
+import axios from "axios";
+import { generateObject } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 
 const nanoid = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
@@ -431,3 +436,98 @@ export const editUser = async (
     }
   }
 };
+
+export const autocompleteSearch = authenticatedAction(
+  z.object( { query: z.string() }),
+  async ({ query }, { userId }) => {
+  if (!process.env.GEOAPIFY_API_KEY) {
+      return new Response(
+          "Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.",
+          {
+              status: 401,
+          },
+      );
+  }
+  try {
+      const response = await axios.get(`https://api.geoapify.com/v1/geocode/autocomplete`, {
+          params: {
+              text: query,
+              apiKey: process.env.GEOAPIFY_API_KEY,
+          },
+      });
+      const result = response.data.features.filter((e: any) => (e.properties.formatted || e.properties.name)).map((city: any) => {
+          const formattedAddress = formatLocationAddress(city)
+          return {
+              uniqueId: `${city.properties.lat}-${city.properties.lon}`,
+              name: formattedAddress,
+              lat: city.properties.lat,
+              lng: city.properties.lon,
+          }
+      });
+      return result;
+  } catch (error) {
+      throw new Error('Erreur lors de la recherche des villes autocomplete')
+  }
+});
+
+export const fetchCitiesInRadius = authenticatedAction(
+  z.object( { lat: z.number(), lng: z.number(), radius: z.number() }),
+  async ({ lat, lng, radius }, { userId }) => {
+    if (!process.env.GEOAPIFY_API_KEY) {
+      throw new Error("Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.");
+    }
+    const radiusNumber = typeof radius === 'string' ? parseFloat(radius) : radius;
+    if (typeof radiusNumber !== 'number' || isNaN(radiusNumber)) {
+      throw new Error("Missing or invalid 'radius' parameter.")
+    }
+    try {
+        const response = await axios.get('https://api.geoapify.com/v2/places', {
+            params: {
+                categories: 'populated_place.city,populated_place.town,populated_place.village',
+                filter: `circle:${lng},${lat},${radiusNumber  * 1000}`,
+                limit: 100,
+                apiKey: process.env.GEOAPIFY_API_KEY
+            }
+        });
+        const cities = response.data.features.filter((place: any) =>
+            ['populated_place.city', 'populated_place.town', 'populated_place.village'].some((i: any) => place.properties.categories.includes(i))
+            && (place.properties.formatted || place.properties.name)
+        );
+        const result = cities.map((city: any) => {
+            const formattedAddress = formatLocationAddress(city)
+            return {
+                uniqueId: `${city.properties.lat}-${city.properties.lon}`,
+                name: formattedAddress,
+                lat: city.properties.lat,
+                lng: city.properties.lon,
+            }
+        });
+        return result;
+    } catch (error) {
+        throw new Error('Erreur lors de la recherche des villes dans le rayon.');
+    }
+});
+
+const perplexityModel = createOpenAI({
+  baseURL: "https://api.perplexity.ai",
+  apiKey: process.env.PERPLEXITY_API_KEY
+})
+
+export async function generateServices(input: string[]) {
+  try {
+    const { object: result } = await generateObject({
+      model: perplexityModel('mixtral-8x7b-instruct'),
+      system: 'Tu es un expert des domaines artisanaux tels que la sérrurerie, la plomberie, la peinture etc.',
+      prompt: `Génère en français des services qui sont dans les même domaines que je te donne. Par exemple si je te donne comme domaine "plomberie", tu me réponds "réparation canalisation". Voici les domaines qui sont séparés par des virgules: ${input.join(", ")}. Il me faut 10 services par domaine`,
+      schema: z.object({
+        result: z.array(
+          z.string().describe('Nom du service')
+        ),
+      }),
+      mode: 'json'
+    });
+    return result;
+  } catch (error) {
+    throw new Error("Erreur lors de la génération avec l'IA.");
+  }
+}

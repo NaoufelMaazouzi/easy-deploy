@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Dispatch, SetStateAction } from "react";
-import { createSite } from "@/lib/actions";
+import { createSite, fetchCitiesInRadius, generateServices } from "@/lib/actions";
 import { toast } from "sonner";
 import va from "@vercel/analytics";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,13 @@ import DomainConfiguration from "@/components/form/domain-configuration";
 import SearchBar from '@/components/SearchBar/index';
 import Tag from "@/components/tags.";
 import ClipLoader from "react-spinners/ClipLoader";
-import axios from "axios";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Bot, Loader2 } from "lucide-react"
+
 
 export interface Location {
   uniqueId: string,
@@ -27,7 +33,8 @@ interface SiteData {
   radius: number,
   headquartersCity: Location,
   mainActivityCity: Location,
-  secondaryActivityCities: Location[]
+  secondaryActivityCities: Location[],
+  services: string[]
 };
 
 export default function CreateSitePage() {
@@ -52,9 +59,13 @@ export default function CreateSitePage() {
       lat: 0,
       lng: 0
     },
-    secondaryActivityCities: []
+    secondaryActivityCities: [],
+    services: []
   });
   const [loading, setLoading] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [inputServices, setInputServices] = useState('');
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   useEffect(() => {
     setData((prev) => ({
@@ -69,7 +80,7 @@ export default function CreateSitePage() {
   useEffect(() => {
     const fetchData = async () => {
         setLoading(true);
-        const cities = await axios.post('/api/fetchCitiesInRadius', {
+        const cities = await fetchCitiesInRadius({
           lat: data.mainActivityCity.lat,
           lng: data.mainActivityCity.lng,
           radius: data.radius
@@ -93,12 +104,56 @@ export default function CreateSitePage() {
       }
   }, [data.radius, data.mainActivityCity]);
 
-  const removeTag = (uniqueId: string) => {
-    setData({
-      ...data,
-      secondaryActivityCities: data.secondaryActivityCities.filter(city => city.uniqueId !== uniqueId)
-    })
+  const removeTag = <T extends keyof SiteData>(property: T, value: string) => {
+    setData(prevData => ({
+      ...prevData,
+      [property]: Array.isArray(prevData[property])
+        ? (prevData[property] as unknown as (Location | string)[]).filter((item: Location | string) =>
+            typeof item === "string" ? item !== value : item.uniqueId !== value
+          )
+        : prevData[property]
+    }));
+    if(property === "services") {
+      const filteredServices = selectedServices.filter(e => e !== value);
+      setSelectedServices(filteredServices)
+    }
   };
+
+  const checkServicesInput = () => {
+    if(!inputServices) {
+      return toast.error('Veuillez entrer un service')
+    } else if (!data.services.includes(inputServices)) {
+      setData(prevData => ({
+            ...prevData,
+            services: [...prevData.services, inputServices]
+        }))
+      return setInputServices('')
+    }
+    return toast.error('Service déjà présent')
+  }
+
+  const generateByIA = async () => {
+    if(!data.services.length) {
+      return toast.error("Veuillez ajouter un service d'abord")
+    } else if(!selectedServices.length) {
+      return toast.error("Veuillez d'abord séléctionner des services en cliquant dessus")
+    }
+    setLoadingAI(true);
+    const result = await generateServices(selectedServices)
+    setLoadingAI(false);
+    setData(prevData => ({
+      ...prevData,
+      services: [...prevData.services, ...result.result]
+    }))
+  }
+
+  const selectTag = (value: string) => {
+    if(selectedServices.includes(value)) {
+      return setSelectedServices(selectedServices.filter(e => e !== value))
+    } else {
+      return setSelectedServices([...selectedServices, value])
+    }
+  }
 
   return (
     <div className="flex flex-col space-y-6">
@@ -124,44 +179,38 @@ export default function CreateSitePage() {
       <div className="relative flex flex-col space-y-4 p-5 md:p-10">
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="name"
-            className="text-sm font-medium text-stone-500 dark:text-stone-400"
-          >
-            Nom de votre site
-          </label>
-          <input
+          <Label htmlFor="name">Nom de votre site</Label>
+          <Input
             name="name"
             type="text"
             placeholder="Mon site web"
             autoFocus
             value={data.name}
-            onChange={(e) => setData({ ...data, name: e.target.value })}
+            onChange={(e) => setData(prevData => ({
+              ...prevData,
+              name: e.target.value
+            }))}
             maxLength={32}
             required
-            className="w-full rounded-md border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
           />
         </div>
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="subdomain"
-            className="text-sm font-medium text-stone-500"
-          >
-            Sous-domaine
-          </label>
+          <Label htmlFor="subdomain">Sous-domaine</Label>
           <div className="flex w-full max-w-md">
-            <input
+            <Input
               name="subdomain"
               type="text"
               placeholder="MonSousDomaines"
               value={data.subdomain}
-              onChange={(e) => setData({ ...data, subdomain: e.target.value })}
+              onChange={(e) => setData(prevData => ({
+                ...prevData,
+                subdomain: e.target.value
+              }))}
               autoCapitalize="off"
               pattern="[a-zA-Z0-9\-]+" // only allow lowercase letters, numbers, and dashes
               maxLength={32}
               required
-              className="w-full rounded-l-lg border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
             />
             <div className="flex items-center rounded-r-lg border border-l-0 border-stone-200 bg-stone-100 px-3 text-sm dark:border-stone-600 dark:bg-stone-800 dark:text-stone-400">
               .{process.env.NEXT_PUBLIC_ROOT_DOMAIN}
@@ -170,24 +219,21 @@ export default function CreateSitePage() {
         </div>
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="customDomain"
-            className="text-sm font-medium text-stone-500"
-          >
-            Domaine personnalisé
-          </label>
+          <Label htmlFor="customDomain">Domaine personnalisé</Label>
           <div className="flex w-full max-w-md">
-            <input
+            <Input
               name="customDomain"
               type="text"
               placeholder="domainePerso.com"
               value={data.customDomain}
-              onChange={(e) => setData({ ...data, customDomain: e.target.value })}
+              onChange={(e) => setData(prevData => ({
+                ...prevData,
+                customDomain: e.target.value
+              }))}
               autoCapitalize="off"
               pattern="[a-zA-Z0-9\-]+" // only allow lowercase letters, numbers, and dashes
               maxLength={32}
               required
-              className="w-full rounded-md border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
             />
           </div>
         </div>
@@ -196,88 +242,76 @@ export default function CreateSitePage() {
         )}
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="description"
-            className="text-sm font-medium text-stone-500"
-          >
-            Description
-          </label>
-          <textarea
+          <Label htmlFor="description">Description</Label>
+          <Textarea
             name="description"
             placeholder="Description de mon site"
             value={data.description}
-            onChange={(e) => setData({ ...data, description: e.target.value })}
+            onChange={(e) => setData(prevData => ({
+              ...prevData,
+              description: e.target.value
+            }))}
             maxLength={140}
             rows={3}
-            className="w-full rounded-md border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black  focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
           />
         </div>
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="corporateName"
-            className="text-sm font-medium text-stone-500 dark:text-stone-400"
-          >
-            Raison sociale
-          </label>
-          <input
+          <Label htmlFor="corporateName">Raison sociale</Label>
+          <Input
             name="corporateName"
             type="text"
             placeholder="Raison sociale"
             autoFocus
             value={data.corporateName}
-            onChange={(e) => setData({ ...data, corporateName: e.target.value })}
+            onChange={(e) => setData(prevData => ({
+              ...prevData,
+              corporateName: e.target.value
+            }))}
             maxLength={32}
             required
-            className="w-full rounded-md border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
           />
         </div>
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="headquartersCity"
-            className="text-sm font-medium text-stone-500 dark:text-stone-400"
-          >
-            Adresse du siège social
-          </label>
+          <Label htmlFor="mainActivityCity">Adresse du siège social</Label>
+          <SearchBar<SiteData> nameOfProperty="headquartersCity" setData={setData} placeHolder="Recherche d'une adresse"/>
         </div>
-        <SearchBar<SiteData> nameOfProperty="headquartersCity" setData={setData} />
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="mainActivityCity"
-            className="text-sm font-medium text-stone-500 dark:text-stone-400"
-          >
-            Votre ville principale d'activité 
-          </label>
+          <Label htmlFor="headquartersCity">Votre ville principale d'activité</Label>
+          <SearchBar<SiteData> nameOfProperty="mainActivityCity" setData={setData} placeHolder="Recherche d'une ville"/>
         </div>
-        <SearchBar<SiteData> nameOfProperty="mainActivityCity" setData={setData} />
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="radius"
-            className="w-full text-sm font-medium text-stone-500 dark:text-stone-400"
+          <Label htmlFor="radius">Vos villes secondaires d'activité (rayon autour de votre ville principale d'activité)</Label>
+          <Select
+            defaultValue="0"
+            onValueChange={(value: string) => setData(prevData => ({
+              ...prevData,
+              radius: parseInt(value)
+            }))}
           >
-            Vos villes secondaires d'activité (rayon autour de votre ville principale d'activité)
-          </label>
-          <select
-            name="radius"
-            id="radius-select"
-            onChange={(e) => setData({ ...data, radius: parseInt(e.target.value) })}
-            className="w-full rounded-md border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600 placeholder:text-stone-400 focus:border-black focus:outline-none focus:ring-black dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700 dark:focus:ring-white"
-          >
-            <option value="0">NON</option>
-            <option value="5">5KM</option>
-            <option value="10">10KM</option>
-            <option value="15">15KM</option>
-            <option value="20">20KM</option>
-            <option value="25">25KM</option>
-            <option value="30">30KM</option>
-            <option value="35">35KM</option>
-            <option value="40">40KM</option>
-            <option value="45">45KM</option>
-            <option value="50">50KM</option>
-          </select>
+            <SelectTrigger className="w-[380px]">
+              <SelectValue placeholder="Choisissez un rayon" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Rayon</SelectLabel>
+                <SelectItem value="0">Non</SelectItem>
+                <SelectItem value="5">5km</SelectItem>
+                <SelectItem value="10">10km</SelectItem>
+                <SelectItem value="15">15km</SelectItem>
+                <SelectItem value="20">20km</SelectItem>
+                <SelectItem value="25">25km</SelectItem>
+                <SelectItem value="30">30km</SelectItem>
+                <SelectItem value="35">35km</SelectItem>
+                <SelectItem value="40">40km</SelectItem>
+                <SelectItem value="45">45km</SelectItem>
+                <SelectItem value="50">50km</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
@@ -288,21 +322,62 @@ export default function CreateSitePage() {
             <div className="container mx-auto p-4">
               <div className="flex flex-wrap gap-2">
                 {data.secondaryActivityCities.map(city => (
-                  <Tag key={city.uniqueId} label={city.name} onRemove={() => removeTag(city.uniqueId)} />
+                  <Tag
+                    key={city.uniqueId}
+                    text={city.name}
+                    onRemove={() => removeTag('secondaryActivityCities', city.uniqueId)}
+                    isSelected={false}
+                  />
                 ))}
               </div>
             </div>
           )}
 
         <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="secondaryActivityCities"
-            className="text-sm font-medium text-stone-500 dark:text-stone-400"
-          >
-           Ajouter manuellement une ville d'activité secondaire
-          </label>
-          <SearchBar<SiteData> nameOfProperty="secondaryActivityCities" setData={setData} />
+          <Label htmlFor="secondaryActivityCities">Ajouter manuellement une ville d'activité secondaire</Label>
+          <SearchBar<SiteData> nameOfProperty="secondaryActivityCities" setData={setData} placeHolder="Recherche d'une ville"/>
         </div>
+
+          <div className="flex flex-col space-y-2">
+            <Label htmlFor="services">Vos services</Label>
+          <div className="flex space-x-2">
+            <Input
+              value={inputServices}
+              name="services"
+              type="text"
+              placeholder="Peinture"
+              onChange={e => setInputServices(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => checkServicesInput()}
+            >
+              Ajouter
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => generateByIA()}
+              disabled={loadingAI}
+            >
+              <Bot className="mr-2.5 h-4 w-4" />
+              {loadingAI && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Générer
+            </Button>
+          </div>
+          <div className="flex flex-wrap space-x-2">
+            {data.services.map((service, index) => (
+              <Tag
+                key={index}
+                text={service}
+                onRemove={() => removeTag('services', service)}
+                onSelected={() => selectTag(service)}
+                isSelected={selectedServices.includes(service)}
+              />
+            ))}
+          </div>
+          </div>
+
 
       </div>
     </form>
