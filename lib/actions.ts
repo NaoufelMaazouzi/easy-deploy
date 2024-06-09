@@ -18,54 +18,63 @@ import { formatLocationAddress, getBlurDataURL } from "@/lib/utils";
 import { authenticatedAction } from "./safe-actions";
 import { z } from "zod";
 import axios from "axios";
-import { generateObject } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+// import { generateObject } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { formSchema } from "@/app/app/(dashboard)/createSite/siteSchema";
+import { Client } from "@upstash/qstash";
 
 const nanoid = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
   7,
 ); // 7-character random string
 
-export const createSite = async (formData: FormData) => {
-  const session = await getSession();
-  if (!session?.user.id) {
-    return {
-      error: "Not authenticated",
-    };
-  }
-  const name = formData.get("name") as string;
-  const description = formData.get("description") as string;
-  const subdomain = formData.get("subdomain") as string;
+export const createSite = authenticatedAction(
+  formSchema,
+  async ({ name }, { userId }) => {
+    console.log(name, userId);
+  },
+);
 
-  try {
-    const response = await prisma.site.create({
-      data: {
-        name,
-        description,
-        subdomain,
-        user: {
-          connect: {
-            id: session.user.id,
-          },
-        },
-      },
-    });
-    await revalidateTag(
-      `${subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}-metadata`,
-    );
-    return response;
-  } catch (error: any) {
-    if (error.code === "P2002") {
-      return {
-        error: `This subdomain is already taken`,
-      };
-    } else {
-      return {
-        error: error.message,
-      };
-    }
-  }
-};
+// export const createSite = async (formData: FormData) => {
+//   const session = await getSession();
+//   if (!session?.user.id) {
+//     return {
+//       error: "Not authenticated",
+//     };
+//   }
+//   const name = formData.get("name") as string;
+//   const description = formData.get("description") as string;
+//   const subdomain = formData.get("subdomain") as string;
+
+//   try {
+//     const response = await prisma.site.create({
+//       data: {
+//         name,
+//         description,
+//         subdomain,
+//         user: {
+//           connect: {
+//             id: session.user.id,
+//           },
+//         },
+//       },
+//     });
+//     await revalidateTag(
+//       `${subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}-metadata`,
+//     );
+//     return response;
+//   } catch (error: any) {
+//     if (error.code === "P2002") {
+//       return {
+//         error: `This subdomain is already taken`,
+//       };
+//     } else {
+//       return {
+//         error: error.message,
+//       };
+//     }
+//   }
+// };
 
 export const updateSite = withSiteAuth(
   async (formData: FormData, site: Site, key: string) => {
@@ -438,96 +447,146 @@ export const editUser = async (
 };
 
 export const autocompleteSearch = authenticatedAction(
-  z.object( { query: z.string() }),
+  z.object({ query: z.string() }),
   async ({ query }, { userId }) => {
-  if (!process.env.GEOAPIFY_API_KEY) {
-      return new Response(
-          "Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.",
-          {
-              status: 401,
-          },
-      );
-  }
-  try {
-      const response = await axios.get(`https://api.geoapify.com/v1/geocode/autocomplete`, {
-          params: {
-              text: query,
-              apiKey: process.env.GEOAPIFY_API_KEY,
-          },
-      });
-      const result = response.data.features.filter((e: any) => (e.properties.formatted || e.properties.name)).map((city: any) => {
-          const formattedAddress = formatLocationAddress(city)
-          return {
-              uniqueId: `${city.properties.lat}-${city.properties.lon}`,
-              name: formattedAddress,
-              lat: city.properties.lat,
-              lng: city.properties.lon,
-          }
-      });
-      return result;
-  } catch (error) {
-      throw new Error('Erreur lors de la recherche des villes autocomplete')
-  }
-});
-
-export const fetchCitiesInRadius = authenticatedAction(
-  z.object( { lat: z.number(), lng: z.number(), radius: z.number() }),
-  async ({ lat, lng, radius }, { userId }) => {
     if (!process.env.GEOAPIFY_API_KEY) {
-      throw new Error("Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.");
-    }
-    const radiusNumber = typeof radius === 'string' ? parseFloat(radius) : radius;
-    if (typeof radiusNumber !== 'number' || isNaN(radiusNumber)) {
-      throw new Error("Missing or invalid 'radius' parameter.")
+      return new Response(
+        "Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.",
+        {
+          status: 401,
+        },
+      );
     }
     try {
-        const response = await axios.get('https://api.geoapify.com/v2/places', {
-            params: {
-                categories: 'populated_place.city,populated_place.town,populated_place.village',
-                filter: `circle:${lng},${lat},${radiusNumber  * 1000}`,
-                limit: 100,
-                apiKey: process.env.GEOAPIFY_API_KEY
-            }
+      const response = await axios.get(
+        `https://api.geoapify.com/v1/geocode/autocomplete`,
+        {
+          params: {
+            text: query,
+            apiKey: process.env.GEOAPIFY_API_KEY,
+          },
+        },
+      );
+      const result = response.data.features
+        .filter((e: any) => e.properties.formatted || e.properties.name)
+        .map((city: any) => {
+          const formattedAddress = formatLocationAddress(city);
+          return {
+            uniqueId: `${city.properties.lat}-${city.properties.lon}`,
+            name: formattedAddress,
+            lat: city.properties.lat,
+            lng: city.properties.lon,
+          };
         });
-        const cities = response.data.features.filter((place: any) =>
-            ['populated_place.city', 'populated_place.town', 'populated_place.village'].some((i: any) => place.properties.categories.includes(i))
-            && (place.properties.formatted || place.properties.name)
-        );
-        const result = cities.map((city: any) => {
-            const formattedAddress = formatLocationAddress(city)
-            return {
-                uniqueId: `${city.properties.lat}-${city.properties.lon}`,
-                name: formattedAddress,
-                lat: city.properties.lat,
-                lng: city.properties.lon,
-            }
-        });
-        return result;
+      return result;
     } catch (error) {
-        throw new Error('Erreur lors de la recherche des villes dans le rayon.');
+      throw new Error("Erreur lors de la recherche des villes autocomplete");
     }
-});
+  },
+);
+
+export const fetchCitiesInRadius = authenticatedAction(
+  z.object({ lat: z.number(), lng: z.number(), radius: z.number() }),
+  async ({ lat, lng, radius }, { userId }) => {
+    if (!process.env.GEOAPIFY_API_KEY) {
+      throw new Error(
+        "Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.",
+      );
+    }
+    const radiusNumber =
+      typeof radius === "string" ? parseFloat(radius) : radius;
+    if (typeof radiusNumber !== "number" || isNaN(radiusNumber)) {
+      throw new Error("Missing or invalid 'radius' parameter.");
+    }
+    try {
+      const response = await axios.get("https://api.geoapify.com/v2/places", {
+        params: {
+          categories:
+            "populated_place.city,populated_place.town,populated_place.village",
+          filter: `circle:${lng},${lat},${radiusNumber * 1000}`,
+          limit: 100,
+          apiKey: process.env.GEOAPIFY_API_KEY,
+        },
+      });
+      const cities = response.data.features.filter(
+        (place: any) =>
+          [
+            "populated_place.city",
+            "populated_place.town",
+            "populated_place.village",
+          ].some((i: any) => place.properties.categories.includes(i)) &&
+          (place.properties.formatted || place.properties.name),
+      );
+      const result = cities.map((city: any) => {
+        const formattedAddress = formatLocationAddress(city);
+        return {
+          uniqueId: `${city.properties.lat}-${city.properties.lon}`,
+          name: formattedAddress,
+          lat: city.properties.lat,
+          lng: city.properties.lon,
+        };
+      });
+      return result;
+    } catch (error) {
+      throw new Error("Erreur lors de la recherche des villes dans le rayon.");
+    }
+  },
+);
 
 const perplexityModel = createOpenAI({
   baseURL: "https://api.perplexity.ai",
-  apiKey: process.env.PERPLEXITY_API_KEY
-})
+  apiKey: process.env.PERPLEXITY_API_KEY,
+});
 
-export async function generateServices(input: string[]) {
+// export async function generateServices(input: string) {
+//   try {
+//     const { object: result } = await generateObject({
+//       model: perplexityModel("mixtral-8x7b-instruct"),
+//       system:
+//         "Tu es un expert des domaines artisanaux tels que la sérrurerie, la plomberie, la peinture etc.",
+//       prompt: `Génère en français des services qui sont dans les même domaines que je te donne. Par exemple si je te donne comme domaine "plomberie", tu me réponds "réparation canalisation". Voici les domaines qui sont séparés par des virgules: ${input}. Il me faut 10 services par domaine`,
+//       schema: z.object({
+//         result: z.array(z.string().describe("Nom du service")),
+//       }),
+//       mode: "json",
+//     });
+//     if (result?.result) {
+//       return result.result.map((name) => ({ name }));
+//     }
+//   } catch (error) {
+//     throw new Error("Erreur lors de la génération avec l'IA.");
+//   }
+// }
+
+export async function generateServices(input: string) {
   try {
-    const { object: result } = await generateObject({
-      model: perplexityModel('mixtral-8x7b-instruct'),
-      system: 'Tu es un expert des domaines artisanaux tels que la sérrurerie, la plomberie, la peinture etc.',
-      prompt: `Génère en français des services qui sont dans les même domaines que je te donne. Par exemple si je te donne comme domaine "plomberie", tu me réponds "réparation canalisation". Voici les domaines qui sont séparés par des virgules: ${input.join(", ")}. Il me faut 10 services par domaine`,
-      schema: z.object({
-        result: z.array(
-          z.string().describe('Nom du service')
-        ),
-      }),
-      mode: 'json'
+    const client = new Client({
+      token: process.env.QSTASH_TOKEN || "",
     });
-    return result;
+    const res = await client.publishJSON({
+      url: "https://api.perplexity.ai/chat/completions",
+      headers: {
+        Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+      },
+      body: {
+        model: "mixtral-8x7b-instruct",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es un expert des domaines artisanaux tels que la sérrurerie, la plomberie, la peinture etc. Tu dois toujours me répondre seulement avec des mots clés séparés par des virgules comme cette phrase 'texte1,texte2,texte3'",
+          },
+          {
+            role: "user",
+            content: `Génère en français des services qui sont dans les même domaines que je te donne. Par exemple si je te donne comme domaine "plomberie", tu me réponds "réparation canalisation". Voici les domaines qui sont séparés par des virgules: ${input}. Il me faut 10 services par domaine`,
+          },
+        ],
+      },
+      callback: `${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/api/qstashWebhook`,
+    });
+    console.log(res);
   } catch (error) {
-    throw new Error("Erreur lors de la génération avec l'IA.");
+    console.log(error);
+    throw new Error("Erreur lors de la génération de services avec l'IA.");
   }
 }
