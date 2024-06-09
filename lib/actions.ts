@@ -485,6 +485,54 @@ export const autocompleteSearch = authenticatedAction(
   },
 );
 
+// export const fetchCitiesInRadius = async (
+//   lat: number,
+//   lng: number,
+//   radius: number,
+// ) => {
+//   if (!process.env.GEOAPIFY_API_KEY) {
+//     throw new Error(
+//       "Missing GEOAPIFY_API_KEY. Don't forget to add that to your .env file.",
+//     );
+//   }
+//   const radiusNumber = typeof radius === "string" ? parseFloat(radius) : radius;
+//   if (typeof radiusNumber !== "number" || isNaN(radiusNumber)) {
+//     throw new Error("Missing or invalid 'radius' parameter.");
+//   }
+//   try {
+//     const response = await axios.get("https://api.geoapify.com/v2/places", {
+//       params: {
+//         categories:
+//           "populated_place.city,populated_place.town,populated_place.village",
+//         filter: `circle:${lng},${lat},${radiusNumber * 1000}`,
+//         limit: 100,
+//         apiKey: process.env.GEOAPIFY_API_KEY,
+//       },
+//     });
+//     const cities = response.data.features.filter(
+//       (place: any) =>
+//         [
+//           "populated_place.city",
+//           "populated_place.town",
+//           "populated_place.village",
+//         ].some((i: any) => place.properties.categories.includes(i)) &&
+//         (place.properties.formatted || place.properties.name),
+//     );
+//     const result = cities.map((city: any) => {
+//       const formattedAddress = formatLocationAddress(city);
+//       return {
+//         uniqueId: `${city.properties.lat}-${city.properties.lon}`,
+//         name: formattedAddress,
+//         lat: city.properties.lat,
+//         lng: city.properties.lon,
+//       };
+//     });
+//     return result;
+//   } catch (error) {
+//     throw new Error("Erreur lors de la recherche des villes dans le rayon.");
+//   }
+// };
+
 export const fetchCitiesInRadius = authenticatedAction(
   z.object({ lat: z.number(), lng: z.number(), radius: z.number() }),
   async ({ lat, lng, radius }, { userId }) => {
