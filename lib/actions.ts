@@ -630,7 +630,7 @@ export async function generateServices(input: string) {
           },
         ],
       },
-      callback: `${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/api/qstashWebhook`,
+      callback: `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/api/qstashWebhook`,
     });
     console.log(res);
   } catch (error) {
