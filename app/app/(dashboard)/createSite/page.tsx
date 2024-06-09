@@ -133,7 +133,7 @@ export default function CreateSitePage() {
         .trim()
         .replace(/[\W_]+/g, "-"),
     );
-  }, [name]);
+  }, [name, setValue]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -158,7 +158,7 @@ export default function CreateSitePage() {
     } else {
       replaceSecondaryActivityCities([]);
     }
-  }, [radius, mainActivityCity]);
+  }, [radius, mainActivityCity, replaceSecondaryActivityCities]);
 
   const removeTag = (
     index: number,
