@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^0.0.20
-        version: 0.0.20(zod@3.23.8)
+        version: 0.0.20(zod@3.21.4)
       '@headlessui/react':
         specifier: ^2.0.4
         version: 2.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -76,7 +76,7 @@ importers:
         version: 0.5.1
       ai:
         specifier: ^3.1.26
-        version: 3.1.30(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8)
+        version: 3.1.30(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.21.4)
       axios:
         specifier: ^1.7.2
         version: 1.7.2
@@ -187,10 +187,10 @@ importers:
         version: 13.12.0
       zod:
         specifier: ^3.21.4
-        version: 3.23.8
+        version: 3.21.4
       zod-i18n-map:
         specifier: ^2.27.0
-        version: 2.27.0(i18next@23.11.5)(zod@3.23.8)
+        version: 2.27.0(i18next@23.11.5)(zod@3.21.4)
     devDependencies:
       '@tailwindcss/forms':
         specifier: ^0.5.7
@@ -4791,7 +4791,7 @@ packages:
   zod@3.21.4:
     resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
 
-  zod@3.23.8:
+  zod@3.21.4:
     resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
 
   zwitch@2.0.4:
@@ -4799,29 +4799,29 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/openai@0.0.20(zod@3.23.8)':
+  '@ai-sdk/openai@0.0.20(zod@3.21.4)':
     dependencies:
       '@ai-sdk/provider': 0.0.8
-      '@ai-sdk/provider-utils': 0.0.11(zod@3.23.8)
-      zod: 3.23.8
+      '@ai-sdk/provider-utils': 0.0.11(zod@3.21.4)
+      zod: 3.21.4
 
-  '@ai-sdk/provider-utils@0.0.11(zod@3.23.8)':
+  '@ai-sdk/provider-utils@0.0.11(zod@3.21.4)':
     dependencies:
       '@ai-sdk/provider': 0.0.8
       eventsource-parser: 1.1.2
       nanoid: 3.3.6
       secure-json-parse: 2.7.0
     optionalDependencies:
-      zod: 3.23.8
+      zod: 3.21.4
 
-  '@ai-sdk/provider-utils@0.0.13(zod@3.23.8)':
+  '@ai-sdk/provider-utils@0.0.13(zod@3.21.4)':
     dependencies:
       '@ai-sdk/provider': 0.0.10
       eventsource-parser: 1.1.2
       nanoid: 3.3.6
       secure-json-parse: 2.7.0
     optionalDependencies:
-      zod: 3.23.8
+      zod: 3.21.4
 
   '@ai-sdk/provider@0.0.10':
     dependencies:
@@ -4920,9 +4920,9 @@ snapshots:
       '@babel/helper-validator-identifier': 7.24.7
       to-fast-properties: 2.0.0
 
-  '@decs/typeschema@0.12.2(zod@3.23.8)':
+  '@decs/typeschema@0.12.2(zod@3.21.4)':
     optionalDependencies:
-      zod: 3.23.8
+      zod: 3.21.4
 
   '@emotion/babel-plugin@11.11.0':
     dependencies:
@@ -6601,10 +6601,10 @@ snapshots:
       svelte: 4.2.18
       vue: 3.4.27(typescript@5.4.5)
 
-  ai@3.1.30(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.23.8):
+  ai@3.1.30(react@18.3.1)(solid-js@1.8.17)(svelte@4.2.18)(vue@3.4.27(typescript@5.4.5))(zod@3.21.4):
     dependencies:
       '@ai-sdk/provider': 0.0.10
-      '@ai-sdk/provider-utils': 0.0.13(zod@3.23.8)
+      '@ai-sdk/provider-utils': 0.0.13(zod@3.21.4)
       eventsource-parser: 1.1.2
       json-schema: 0.4.0
       jsondiffpatch: 0.6.0
@@ -6615,13 +6615,13 @@ snapshots:
       swr: 2.2.0(react@18.3.1)
       swr-store: 0.10.6
       swrv: 1.0.4(vue@3.4.27(typescript@5.4.5))
-      zod-to-json-schema: 3.22.5(zod@3.23.8)
+      zod-to-json-schema: 3.22.5(zod@3.21.4)
     optionalDependencies:
       react: 18.3.1
       solid-js: 1.8.17
       svelte: 4.2.18
       vue: 3.4.27(typescript@5.4.5)
-      zod: 3.23.8
+      zod: 3.21.4
 
   ajv@6.12.6:
     dependencies:
@@ -8792,11 +8792,11 @@ snapshots:
 
   next-safe-action@6.2.0(next@14.0.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1):
     dependencies:
-      '@decs/typeschema': 0.12.2(zod@3.23.8)
+      '@decs/typeschema': 0.12.2(zod@3.21.4)
       next: 14.0.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
     optionalDependencies:
-      zod: 3.23.8
+      zod: 3.21.4
     transitivePeerDependencies:
       - '@deepkit/type'
       - '@effect/schema'
@@ -10458,17 +10458,17 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  zod-i18n-map@2.27.0(i18next@23.11.5)(zod@3.23.8):
+  zod-i18n-map@2.27.0(i18next@23.11.5)(zod@3.21.4):
     dependencies:
       i18next: 23.11.5
-      zod: 3.23.8
+      zod: 3.21.4
 
-  zod-to-json-schema@3.22.5(zod@3.23.8):
+  zod-to-json-schema@3.22.5(zod@3.21.4):
     dependencies:
-      zod: 3.23.8
+      zod: 3.21.4
 
   zod@3.21.4: {}
 
-  zod@3.23.8: {}
+  zod@3.21.4: {}
 
   zwitch@2.0.4: {}
